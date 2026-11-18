@@ -1,0 +1,6 @@
+.env
+.env.identity
+.env.content
+/bin/
+*.test
+coverage.out

@@ -1,0 +1,81 @@
+# Lingkungan lokal. G3 ditegakkan oleh JARINGAN, bukan oleh disiplin:
+# svc-content tidak berada di vault-net, jadi TCP ke postgres-vault mustahil walau ada kodenya.
+# Di produksi hal yang sama dilakukan oleh security group (Vault hanya menerima svc-identity).
+name: dontmove
+
+services:
+  postgres-vault:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vault
+      POSTGRES_PASSWORD: vault-dev-only
+      POSTGRES_DB: vault
+    volumes: [vault-data:/var/lib/postgresql/data]
+    networks: [vault-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vault"]
+      interval: 3s
+      retries: 20
+
+  postgres-content:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: content
+      POSTGRES_PASSWORD: content-dev-only
+      POSTGRES_DB: content
+    ports: ["5434:5432"]          # boleh dibuka ke host untuk pengembangan; Vault TIDAK
+    volumes: [content-data:/var/lib/postgresql/data]
+    networks: [content-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U content"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine        # dipakai mulai F1 (rate limit, daftar blokir)
+    networks: [content-net]
+
+  migrate-vault:
+    image: golang:1.23-alpine
+    command: go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir /migrations postgres "postgres://vault:vault-dev-only@postgres-vault:5432/vault?sslmode=disable" up
+    volumes: [./svc-identity/migrations/identity:/migrations:ro]
+    networks: [vault-net, edge-net]   # edge-net hanya untuk mengunduh goose
+    depends_on: { postgres-vault: { condition: service_healthy } }
+
+  migrate-content:
+    image: golang:1.23-alpine
+    command: go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir /migrations postgres "postgres://content:content-dev-only@postgres-content:5432/content?sslmode=disable" up
+    volumes: [./svc-content/migrations/content:/migrations:ro]
+    networks: [content-net, edge-net]
+    depends_on: { postgres-content: { condition: service_healthy } }
+
+  svc-identity:
+    build: { context: ., dockerfile: svc-identity/Dockerfile }
+    env_file: .env.identity
+    environment:
+      VAULT_DATABASE_URL: postgres://vault:vault-dev-only@postgres-vault:5432/vault?sslmode=disable
+      IDENTITY_DEV_OTP: "1"
+    ports: ["8081:8081"]          # listener publik (otp/register/login) — di produksi lewat gateway
+    networks: [vault-net, edge-net]
+    depends_on: { migrate-vault: { condition: service_completed_successfully } }
+
+  svc-content:
+    build: { context: ., dockerfile: svc-content/Dockerfile }
+    env_file: .env.content       # file terpisah: rahasia Vault tidak pernah sampai ke Konten
+    environment:
+      CONTENT_DATABASE_URL: postgres://content:content-dev-only@postgres-content:5432/content?sslmode=disable
+      IDENTITY_INTERNAL_URL: http://svc-identity:8082
+    ports: ["8080:8080"]
+    networks: [content-net, edge-net]   # BUKAN vault-net
+    depends_on:
+      migrate-content: { condition: service_completed_successfully }
+      svc-identity: { condition: service_started }
+
+networks:
+  vault-net:   { internal: true }
+  content-net: { internal: true }
+  edge-net: {}
+
+volumes:
+  vault-data:
+  content-data:

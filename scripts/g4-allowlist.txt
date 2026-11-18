@@ -1,0 +1,3 @@
+# Pengecualian G4. Format: <path-file> <alasan tertulis>
+# Menambah baris di sini WAJIB lewat pull request yang disetujui pemilik keamanan (lihat CODEOWNERS).
+# Kalau kamu merasa perlu menambahkan sesuatu, tanyakan dulu kenapa Konten butuh tahu soal Vault.

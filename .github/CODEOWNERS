@@ -1,0 +1,8 @@
+# Perubahan pada penjaga keamanan wajib ditinjau pemilik keamanan.
+# Ganti @dontmove/security dengan akun/tim GitHub yang sebenarnya.
+/scripts/guard.sh            @dontmove/security
+/scripts/g4-allowlist.txt    @dontmove/security
+/scripts/verify/             @dontmove/security
+/svc-identity/migrations/    @dontmove/security
+/svc-content/internal/config/ @dontmove/security
+/docker-compose.yml          @dontmove/security

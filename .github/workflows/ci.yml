@@ -1,0 +1,50 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  f0:
+    runs-on: ubuntu-latest
+    services:
+      vault:
+        image: postgres:16
+        env: { POSTGRES_USER: vault, POSTGRES_PASSWORD: vault-dev-only, POSTGRES_DB: vault }
+        ports: ["5433:5432"]
+        options: --health-cmd pg_isready --health-interval 3s --health-retries 20
+      content:
+        image: postgres:16
+        env: { POSTGRES_USER: content, POSTGRES_PASSWORD: content-dev-only, POSTGRES_DB: content }
+        ports: ["5434:5432"]
+        options: --health-cmd pg_isready --health-interval 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.23" }
+
+      - name: Install sqlc & goose
+        run: |
+          curl -sSL https://github.com/sqlc-dev/sqlc/releases/download/v1.27.0/sqlc_1.27.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin sqlc
+          curl -sSL -o /usr/local/bin/goose https://github.com/pressly/goose/releases/download/v3.22.1/goose_linux_x86_64
+          chmod +x /usr/local/bin/goose
+
+      - name: G1–G4
+        run: ./scripts/guard.sh
+
+      - name: Kode sqlc sesuai skema (G2)
+        run: |
+          (cd svc-identity && sqlc diff)
+          (cd svc-content  && sqlc diff)
+
+      - name: go.mod rapi
+        run: |
+          for m in pkg/identity-client svc-identity svc-content; do (cd $m && go mod tidy -diff); done
+
+      - name: Tes unit
+        run: make test
+
+      - name: Migrasi (naik, turun, naik) + uji constraint + tes integrasi
+        run: |
+          goose -dir svc-identity/migrations/identity postgres "postgres://vault:vault-dev-only@localhost:5433/vault?sslmode=disable" up
+          goose -dir svc-identity/migrations/identity postgres "postgres://vault:vault-dev-only@localhost:5433/vault?sslmode=disable" reset
+          goose -dir svc-content/migrations/content   postgres "postgres://content:content-dev-only@localhost:5434/content?sslmode=disable" up
+          goose -dir svc-content/migrations/content   postgres "postgres://content:content-dev-only@localhost:5434/content?sslmode=disable" reset
+          make test-integration
