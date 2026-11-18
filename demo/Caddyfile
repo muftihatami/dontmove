@@ -1,0 +1,21 @@
+# Pintu masuk uji: satu alamat untuk aplikasi web + kedua layanan.
+# Satu origin berarti tidak perlu CORS di layanan mana pun.
+# Ini setara "gateway" di keputusan F0 nomor 1: autentikasi langsung ke Identitas, tidak lewat Konten.
+:8088 {
+	handle_path /identity/* {
+		reverse_proxy svc-identity:8081
+	}
+	handle_path /api/* {
+		reverse_proxy svc-content:8080
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	# Sengaja tanpa log akses: IP per-request tidak dicatat (arsitektur Prinsip 4).
+}

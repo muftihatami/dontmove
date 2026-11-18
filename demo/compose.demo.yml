@@ -1,0 +1,12 @@
+# Tambahan untuk uji di HP. Dipakai bersama docker-compose.yml:
+#   docker compose -f docker-compose.yml -f demo/compose.demo.yml up -d --build
+# Jalankan lewat demo/start.sh saja.
+services:
+  web:
+    image: caddy:2-alpine
+    ports: ["8088:8088"]
+    volumes:
+      - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./demo/web:/srv:ro
+    networks: [edge-net]
+    depends_on: [svc-identity, svc-content]
