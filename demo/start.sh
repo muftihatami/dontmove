@@ -39,8 +39,16 @@ echo "→ Menjalankan layanan…"
 [ "${1:-}" = "--update" ] && "${COMPOSE[@]}" restart web >/dev/null
 
 # 4. Alamat untuk HP.
+public_note=""
 if [ -n "${CODESPACE_NAME:-}" ]; then
-  gh codespace ports visibility 8088:public -c "$CODESPACE_NAME" >/dev/null
+  # Butuh izin "codespace" pada token; tidak semua codespace punya. Kalau gagal, jangan berhenti.
+  if ! gh codespace ports visibility 8088:public -c "$CODESPACE_NAME" >/dev/null 2>&1; then
+    public_note="
+ PENTING: port 8088 belum publik. Buka tab Ports, klik kanan
+ baris 8088 → Port Visibility → Public. Tanpa ini, iPhone dan
+ temanmu akan melihat 404 GitHub.
+"
+  fi
   url="https://${CODESPACE_NAME}-8088.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}"
 else
   url="http://localhost:8088"
@@ -55,7 +63,7 @@ cat <<MSG
  Daftar memakai email dan nomor HP apa saja (format valid).
  Kode verifikasi muncul di bawah ini. Ctrl+C hanya menutup
  tampilan kode; layanan tetap berjalan.
-──────────────────────────────────────────────
+${public_note}──────────────────────────────────────────────
 MSG
 "${COMPOSE[@]}" logs -f --no-log-prefix --since 1s svc-identity 2>/dev/null \
   | grep --line-buffered 'DEV OTP' \
