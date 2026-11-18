@@ -1,0 +1,9 @@
+{"level":"info","ts":1794977328.3540897,"msg":"using config from file","file":"demo/Caddyfile"}
+{"level":"info","ts":1794977328.3550906,"msg":"adapted config to JSON","adapter":"caddyfile"}
+{"level":"info","ts":1794977328.3556361,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
+{"level":"info","ts":1794977328.3558056,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0xc0001d8080"}
+{"level":"info","ts":1794977328.356058,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+{"level":"info","ts":1794977328.356156,"msg":"autosaved config (load with --resume flag)","file":"/home/runner/.config/caddy/autosave.json"}
+{"level":"info","ts":1794977328.3561602,"msg":"serving initial configuration"}
+{"level":"info","ts":1794977328.3581946,"logger":"tls","msg":"cleaning storage unit","storage":"FileStorage:/home/runner/.local/share/caddy"}
+{"level":"info","ts":1794977328.3584836,"logger":"tls","msg":"finished cleaning storage units"}

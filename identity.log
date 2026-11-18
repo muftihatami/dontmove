@@ -1,0 +1,4 @@
+{"time":"2026-11-18T04:48:48.327650701Z","level":"WARN","msg":"IDENTITY_DEV_OTP aktif: kode OTP ditulis ke log"}
+{"time":"2026-11-18T04:48:48.327743078Z","level":"INFO","msg":"kunci publik token (CONTENT_TOKEN_PUBLIC_KEY)","value":"PgmMTFEo3oq2b8aaut3F9yXLBaC6iXhe4fxE8Cw7Ecw="}
+{"time":"2026-11-18T04:48:48.327812514Z","level":"INFO","msg":"mendengarkan","addr":":8082"}
+{"time":"2026-11-18T04:48:48.327896873Z","level":"INFO","msg":"mendengarkan","addr":":8081"}

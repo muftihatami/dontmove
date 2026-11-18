@@ -1,0 +1,16 @@
+✓ aplikasi web disajikan di /
+✓ rute dalam jatuh ke index.html
+✓ header Server disembunyikan
+✓ tiga akun terdaftar lewat pintu masuk
+✓ usia di bawah 17 ditolak (not_eligible)
+✓ email/HP yang sama ditolak (already_registered)
+✓ tiga thread ditulis
+✓ tiga komentar, termasuk balasan penulis
+✓ thread berisi 3 komentar
+✓ penanda penulis tepat satu
+✓ alias C tercatat setelah menulis
+✓ respons thread tanpa id akun dan cap waktu
+✓ thread yang dibalas masuk Ramai
+✓ Belum dibalas untuk A: 2 thread orang lain
+✓ tanpa token ditolak 401
+Lulus: 15 pemeriksaan
