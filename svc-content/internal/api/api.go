@@ -1,5 +1,5 @@
-// Package api — HTTP Layanan Konten. Di F0 hanya fondasi: autentikasi, akun, hapus akun.
-// Timeline (F1) dan chat (F2) menumpuk di atas router ini.
+// Package api — HTTP Layanan Konten. F0: autentikasi, akun, hapus akun. F1: timeline (timeline.go).
+// Chat (F2) menumpuk di atas router ini.
 package api
 
 import (
@@ -44,6 +44,15 @@ func (s *Server) Router() http.Handler {
 		r.Use(s.authenticate)
 		r.Get("/v1/me", s.me)
 		r.Post("/v1/account/delete", s.deleteAccount)
+
+		// F1 Timeline (timeline.go)
+		r.Get("/v1/feed", s.feed)
+		r.Get("/v1/quota", s.quota)
+		r.Post("/v1/threads", s.createThread)
+		r.Get("/v1/threads/{id}", s.getThread)
+		r.Delete("/v1/threads/{id}", s.deleteThread)
+		r.Post("/v1/threads/{id}/comments", s.createComment)
+		r.Delete("/v1/comments/{id}", s.deleteComment)
 	})
 	return r
 }

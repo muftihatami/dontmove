@@ -1,8 +1,10 @@
-# Don't Move — F0 Fondasi
+# Don't Move — Backend
 
-Implementasi F0 dari `KEPUTUSAN-F0-Dont-Move.md` (21 Agt 2026): dua database terpisah, Layanan Identitas,
-registrasi + OTP, token, `shadow_link`, log akses, job purge, dan penjaga G1–G4.
-**F1 (timeline) boleh dimulai setelah `make check` lulus di CI.**
+**F0 Fondasi** (selesai, CI hijau 18 Nov 2026): implementasi `KEPUTUSAN-F0-Dont-Move.md` — dua database terpisah,
+Layanan Identitas, registrasi + OTP, token, `shadow_link`, log akses, job purge, dan penjaga G1–G4.
+
+**F1 Timeline** (18 Nov 2026): thread, komentar, feed tiga tab, alias per-thread, kuota, hapus tulisan sendiri.
+Lihat bagian *F1 Timeline* di bawah.
 
 ## Struktur
 
@@ -98,6 +100,42 @@ tidak bisa dipakai mendaftar. Kalau laporan ditolak → lookup dimusnahkan; kala
 Biayanya: orang yang dilaporkan lalu menghapus akun baik-baik harus menunggu laporannya selesai sebelum bisa
 kembali. SLA moderasi (6 jam untuk pelecehan) membuat itu murah.
 
+## F1 Timeline
+
+Semua endpoint butuh `Authorization: Bearer <token>`. Kode di `svc-content/internal/api/timeline.go`,
+query di `svc-content/queries/content/timeline.sql`.
+
+| Endpoint | Fungsi | Aturan |
+|---|---|---|
+| `GET /v1/feed?tab=terbaru\|belum-dibalas\|ramai&cursor=&limit=` | Feed (K9) | Default `terbaru`. `next` kosong = halaman terakhir |
+| `POST /v1/threads` `{"body"}` | Tulis thread | 1–1.000 karakter, 10 per 24 jam (R4). Penulis langsung mendapat alias |
+| `GET /v1/threads/{id}` | Thread + komentar | `my_alias: null` = belum pernah menulis di sini. `closed` = dihapus penulisnya |
+| `DELETE /v1/threads/{id}` | Hapus thread sendiri | Tanpa balasan → hilang. Ada balasan → nisan, keluar dari feed, tidak menerima balasan baru |
+| `POST /v1/threads/{id}/comments` `{"body","parent_id"?}` | Komentar | 60 per 24 jam (R5). Membalas balasan → otomatis naik ke induk tingkat atas (K3). `alias_new: true` → tampilkan toast TH-02 |
+| `DELETE /v1/comments/{id}` | Hapus komentar sendiri | Tanpa balasan → hilang. Tingkat atas dengan balasan → nisan |
+| `GET /v1/quota` | Sisa kuota | Aplikasi menampilkan sisa thread hanya saat ≤ 3 (K5) |
+
+Aturan yang ditegakkan:
+
+- **Tidak ada `shadow_id`/`author_id` dan tidak ada cap waktu presisi di respons.** Klien menerima alias,
+  `is_mine`, `is_author` (penanda "penulis"), dan waktu kasar ("2 mnt", "kemarin"). Kursor tab Terbaru adalah id
+  thread (UUID acak), bukan waktu. Tes memeriksa respons feed tidak memuat id akun.
+- **Satu definisi "komentar yang terlihat"**: fungsi SQL `visible_comments(thread, penonton)` (migrasi 00007).
+  Jumlah balasan, tab Belum dibalas, tab Ramai, dan halaman thread semuanya memakainya. **F3 menambahkan penyaringan
+  blokir di fungsi ini saja** — jangan buat penyaring kedua.
+- **Alias lahir dari menulis, tidak dari membaca** (T7). Diambil acak dari kolam (A4); tabrakan antar-penulis
+  bersamaan diulang di dalam savepoint.
+- **Kuota dihitung termasuk tulisan yang sudah dihapus**, supaya hapus-lalu-kirim-ulang tidak membuka kuota.
+  Tulisan satu akun diserialkan (`LockAccount`) sehingga permintaan paralel tidak bisa menembus batas.
+- Tab **Belum dibalas**: thread < 24 jam tanpa balasan menurut penonton, bukan milik penonton, terlama di atas.
+  Tab **Ramai**: jumlah orang berbeda (bukan penulis) yang membalas dalam 24 jam, dikelompokkan 1–2 / 3–5 / 6+,
+  thread > 48 jam keluar.
+
+Tes: `svc-content/internal/api/timeline_integration_test.go` — alur lengkap, validasi, kuota, paginasi,
+30 balasan serentak (alias tidak bertabrakan), 15 thread serentak (tepat 10 lolos).
+
+Belum di F1: chat (F2), blokir dan lapor (F3), Nearby (v2.0, kolom `scope` sudah ada).
+
 ## Belum di F0 (sengaja)
 
 - **Pengirim OTP produksi** (penyedia SMS dan email) belum dipilih. Tanpa `IDENTITY_DEV_OTP=1`, layanan menolak
@@ -109,10 +147,9 @@ kembali. SLA moderasi (6 jam untuk pelecehan) membuat itu murah.
 - **Ban → status akun di Content Store** diteruskan oleh konsol moderasi di F3. Sampai saat itu, token yang sudah
   terbit tetap berlaku sampai kedaluwarsa walau identitasnya di-ban.
 - **Endpoint `legal_hold`** dibuat bersama alur laporan di F3.
-- **Kolam alias** (1.000 label, disaring manual) di-seed di F1.
+- ~~**Kolam alias**~~ di-seed di F1: 1.310 label (`00006_alias_pool_seed.sql`).
 
 ## Catatan go.sum
 
-Repo ini dibangun dan dites di lingkungan yang tidak bisa menjangkau `proxy.golang.org`, jadi `go.sum` belum
-disertakan. Jalankan `make tidy` sekali di mesin dengan akses internet normal lalu commit hasilnya.
-CI memeriksa `go mod tidy -diff`, jadi go.sum yang tertinggal akan ketahuan.
+`go.sum` dibuat dengan `make tidy` dan sudah di-commit. CI memeriksa `go mod tidy -diff`, jadi dependensi baru
+tanpa go.sum yang diperbarui akan ketahuan.
