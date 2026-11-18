@@ -109,14 +109,20 @@ class WhoRow extends StatelessWidget {
     return Row(children: [
       AliasAvatar(label: alias['label'] as String, color: alias['color'] as String),
       const SizedBox(width: 8),
-      Flexible(
-        child: Text(alias['label'] as String,
-            overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      Expanded(
+        child: Row(children: [
+          Flexible(
+            child: Text(alias['label'] as String,
+                overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          ),
+          if (isAuthor) ...[const SizedBox(width: 6), const Tag('penulis')],
+          if (isMine) ...[const SizedBox(width: 6), const Tag('kamu', dashed: true)],
+        ]),
       ),
-      if (isAuthor) ...[const SizedBox(width: 6), const Tag('penulis')],
-      if (isMine) ...[const SizedBox(width: 6), const Tag('kamu', dashed: true)],
-      const Spacer(),
-      if (time != null) Text(time!, style: const TextStyle(color: C.ink3, fontSize: 12)),
+      if (time != null) ...[
+        const SizedBox(width: 8),
+        Text(time!, style: const TextStyle(color: C.ink3, fontSize: 12)),
+      ],
     ]);
   }
 }

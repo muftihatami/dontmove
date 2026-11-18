@@ -24,10 +24,12 @@ ThemeData buildTheme() {
     error: C.stop,
     onError: C.paper,
     outline: C.rule,
+    outlineVariant: C.rule,
   );
   final base = ThemeData(useMaterial3: true, colorScheme: scheme, scaffoldBackgroundColor: C.paper);
   return base.copyWith(
     dividerColor: C.rule,
+    dividerTheme: const DividerThemeData(color: C.rule, thickness: 1),
     appBarTheme: const AppBarTheme(
       backgroundColor: C.paper,
       foregroundColor: C.ink,
