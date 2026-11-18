@@ -38,7 +38,7 @@ jobs:
         run: |
           curl -sSL -o /usr/local/bin/goose https://github.com/pressly/goose/releases/download/v3.22.1/goose_linux_x86_64 && chmod +x /usr/local/bin/goose
           curl -sSL https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz | tar xz -C /usr/local/bin caddy
-          pip install -q playwright==1.47.0 && python -m playwright install --with-deps chromium >/dev/null
+          pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
 
       - name: Build aplikasi web
         working-directory: app
