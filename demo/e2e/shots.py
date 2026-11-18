@@ -41,9 +41,15 @@ with sync_playwright() as p:
     settle(pg, 6)
     pg.screenshot(path=f"{OUT}/02-timeline.png")
 
-    pg.mouse.click(195, 200)  # thread teratas
+    pg.mouse.click(195, 200)  # thread teratas (milik sendiri, belum dibalas)
     settle(pg)
     pg.screenshot(path=f"{OUT}/03-thread.png")
+
+    pg.goto(BASE)
+    settle(pg, 6)
+    pg.mouse.click(195, 430)  # thread ketiga: punya balasan + balasan penulis
+    settle(pg)
+    pg.screenshot(path=f"{OUT}/03b-thread-dibalas.png")
 
     pg.goto(BASE)
     settle(pg, 6)
@@ -54,7 +60,7 @@ with sync_playwright() as p:
     settle(pg, 3)
     pg.screenshot(path=f"{OUT}/05-ramai.png")
 
-    pg.mouse.click(330, 770)  # tombol Tulis
+    pg.mouse.click(328, 735)  # tombol Tulis
     settle(pg, 3)
     pg.screenshot(path=f"{OUT}/06-tulis.png")
 
