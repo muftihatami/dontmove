@@ -1,0 +1,79 @@
+name: e2e
+# Uji ujung-ke-ujung: kedua layanan + aplikasi web di balik pintu masuk Caddy yang sama dengan demo/.
+# Hasil (log + tangkapan layar ukuran iPhone) dikirim ke branch e2e-shots.
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "demo/**", "svc-content/**", "svc-identity/**", "pkg/**", ".github/workflows/e2e.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      vault:
+        image: postgres:16
+        env: { POSTGRES_USER: vault, POSTGRES_PASSWORD: vault-dev-only, POSTGRES_DB: vault }
+        ports: ["5433:5432"]
+        options: --health-cmd pg_isready --health-interval 3s --health-retries 20
+      content:
+        image: postgres:16
+        env: { POSTGRES_USER: content, POSTGRES_PASSWORD: content-dev-only, POSTGRES_DB: content }
+        ports: ["5434:5432"]
+        options: --health-cmd pg_isready --health-interval 3s --health-retries 20
+    env:
+      VAULT_URL: postgres://vault:vault-dev-only@localhost:5433/vault?sslmode=disable
+      CONTENT_URL: postgres://content:content-dev-only@localhost:5434/content?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.23", cache-dependency-path: "**/go.sum" }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+
+      - name: Alat (goose, caddy, playwright)
+        run: |
+          curl -sSL -o /usr/local/bin/goose https://github.com/pressly/goose/releases/download/v3.22.1/goose_linux_x86_64 && chmod +x /usr/local/bin/goose
+          curl -sSL https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz | tar xz -C /usr/local/bin caddy
+          pip install -q playwright==1.47.0 && python -m playwright install --with-deps chromium >/dev/null
+
+      - name: Build aplikasi web
+        working-directory: app
+        run: |
+          flutter create --platforms=web --project-name dontmove --org id.dontmove . >/dev/null
+          flutter pub get >/dev/null
+          flutter build web --release --no-web-resources-cdn
+
+      - name: Jalankan layanan + pintu masuk
+        run: |
+          goose -dir svc-identity/migrations/identity postgres "$VAULT_URL" up
+          goose -dir svc-content/migrations/content postgres "$CONTENT_URL" up
+          keys=$(cd svc-identity && go run ./cmd/keygen)
+          export $(grep -E '^(IDENTITY_|CONTENT_)' <<<"$keys" | xargs)
+          (cd svc-identity && go build -o /tmp/identity ./cmd/identity) && (cd svc-content && go build -o /tmp/content ./cmd/content)
+          VAULT_DATABASE_URL="$VAULT_URL" IDENTITY_DEV_OTP=1 nohup /tmp/identity > /tmp/identity.log 2>&1 &
+          CONTENT_DATABASE_URL="$CONTENT_URL" IDENTITY_INTERNAL_URL=http://localhost:8082 nohup /tmp/content > /tmp/content.log 2>&1 &
+          IDENTITY_UPSTREAM=localhost:8081 CONTENT_UPSTREAM=localhost:8080 WEB_ROOT=$PWD/app/build/web \
+            nohup caddy run --config demo/Caddyfile --adapter caddyfile > /tmp/caddy.log 2>&1 &
+          for i in $(seq 1 50); do curl -sf localhost:8080/healthz -o /dev/null && curl -s localhost:8088/ -o /dev/null && break; sleep 0.3; done
+
+      - name: Uji API lewat pintu masuk
+        run: IDLOG=/tmp/identity.log TOKEN_OUT=/tmp/token-c bash demo/e2e/api.sh | tee /tmp/api.txt
+
+      - name: Tangkapan layar ukuran iPhone
+        run: python demo/e2e/shots.py /tmp/shots /tmp/token-c
+
+      - name: Kirim hasil ke branch e2e-shots
+        if: always()
+        run: |
+          mkdir -p /tmp/out && cp -r /tmp/shots/. /tmp/out/ 2>/dev/null || true
+          cp /tmp/api.txt /tmp/out/ 2>/dev/null || true
+          grep -v '"code"' /tmp/identity.log | tail -50 > /tmp/out/identity.log || true
+          tail -50 /tmp/content.log > /tmp/out/content.log || true
+          tail -30 /tmp/caddy.log > /tmp/out/caddy.log || true
+          cd /tmp/out && git init -q && git checkout -q -b e2e-shots && git add -A
+          git -c user.name=e2e -c user.email=e2e@users.noreply.github.com commit -qm "e2e ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" e2e-shots

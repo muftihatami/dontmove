@@ -3,13 +3,13 @@
 # Ini setara "gateway" di keputusan F0 nomor 1: autentikasi langsung ke Identitas, tidak lewat Konten.
 :8088 {
 	handle_path /identity/* {
-		reverse_proxy svc-identity:8081
+		reverse_proxy {$IDENTITY_UPSTREAM:svc-identity:8081}
 	}
 	handle_path /api/* {
-		reverse_proxy svc-content:8080
+		reverse_proxy {$CONTENT_UPSTREAM:svc-content:8080}
 	}
 	handle {
-		root * /srv
+		root * {$WEB_ROOT:/srv}
 		try_files {path} /index.html
 		file_server
 	}

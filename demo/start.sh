@@ -28,7 +28,7 @@ if [ ! -f demo/web/index.html ]; then
   else
     echo "→ Membangun aplikasi di sini dengan Docker (sekitar 5 menit, hanya sekali)…"
     docker run --rm -v "$PWD/app":/app -w /app ghcr.io/cirruslabs/flutter:stable bash -c \
-      "flutter create --platforms=web --project-name dontmove --org id.dontmove . >/dev/null && flutter pub get >/dev/null && flutter build web --release"
+      "flutter create --platforms=web --project-name dontmove --org id.dontmove . >/dev/null && flutter pub get >/dev/null && flutter build web --release --no-web-resources-cdn"
     cp -r app/build/web/. demo/web/
   fi
 fi
@@ -59,4 +59,4 @@ cat <<MSG
 MSG
 "${COMPOSE[@]}" logs -f --no-log-prefix --since 1s svc-identity 2>/dev/null \
   | grep --line-buffered 'DEV OTP' \
-  | sed -u -E 's/.*channel=([a-z]+).*code=([0-9]+).*/  Kode \1: \2/'
+  | sed -u -E 's/.*"channel":"([a-z]+)".*"code":"([0-9]+)".*/  Kode \1: \2/'
